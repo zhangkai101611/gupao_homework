@@ -1,0 +1,90 @@
+2、总结：MyBatis里面用到了哪些设计模式？
+1）.工厂模式
+SqlSessionFactory获取sqlSession
+newExecutor：（静态工厂）
+  public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    if (ExecutorType.BATCH == executorType) {
+      executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+      executor = new ReuseExecutor(this, transaction);
+    } else {
+      executor = new SimpleExecutor(this, transaction);
+    }
+    if (cacheEnabled) {
+      executor = new CachingExecutor(executor);
+    }
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+  }
+2）.单例模式
+LogFactory
+public final class LogFactory {
+  /**
+   * Marker to be used by logging implementations that support markers.
+   */
+ ...
+  private LogFactory() {
+    // disable construction
+  }
+
+  public static Log getLog(Class<?> aClass) {
+    return getLog(aClass.getName());
+  }
+ }
+
+ 3）.建造模式
+ 如：
+       for (XNode child : context.getChildren()) {
+        String id = child.getStringAttribute("id");
+        if (isSpecifiedEnvironment(id)) {
+          TransactionFactory txFactory = transactionManagerElement(child.evalNode("transactionManager"));
+          DataSourceFactory dsFactory = dataSourceElement(child.evalNode("dataSource"));
+          DataSource dataSource = dsFactory.getDataSource();
+          Environment.Builder environmentBuilder = new Environment.Builder(id)
+              .transactionFactory(txFactory)
+              .dataSource(dataSource);
+          configuration.setEnvironment(environmentBuilder.build());
+        }
+      }
+
+4）.装饰器模式
+cache 缓存的装饰器模式实现，
+PerpetualCache为基础的缓存类，如：BlockingCache/FifoCache/LoggingCache等等均是对其的装饰，对其功能的增强
+5）模板方法模式
+public abstract class BaseExecutor implements Executor {
+    
+  public int update(MappedStatement ms, Object parameter) throws SQLException {
+    ErrorContext.instance().resource(ms.getResource()).activity("executing an update").object(ms.getId());
+    if (closed) throw new ExecutorException("Executor was closed.");
+    clearLocalCache();
+    return doUpdate(ms, parameter);
+  }
+    
+   protected abstract int doUpdate(MappedStatement ms, Object parameter)
+      throws SQLException;
+
+
+6）动态代理
+
+如：mybatis生成代理对象MapperProxy
+
+public class MapperProxy<T> implements InvocationHandler, Serializable {
+  ...
+  // MapperProxy方法调用的时候会直接调用其invoke方法，
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    // 针对于Object里的方法
+    if (Object.class.equals(method.getDeclaringClass())) {
+      try {
+        return method.invoke(this, args);
+      } catch (Throwable t) {
+        throw ExceptionUtil.unwrapThrowable(t);
+      }
+    }
+      
+    final MapperMethod mapperMethod = cachedMapperMethod(method);
+  
+    return mapperMethod.execute(sqlSession, args);
+}
