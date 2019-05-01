@@ -1,4 +1,4 @@
-2、总结：MyBatis里面用到了哪些设计模式？
+1、总结：MyBatis里面用到了哪些设计模式？
 1）.工厂模式
 SqlSessionFactory获取sqlSession
 newExecutor：（静态工厂）
@@ -88,3 +88,11 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
   
     return mapperMethod.execute(sqlSession, args);
 }
+
+
+2、在编程式的开发中，有什么方法保证DefaultSqlSession 的线程安全？
+
+可以通过threadLocal构建一个sqlsession的对象，如 private final ThreadLocal<SqlSession> localSqlSession = new ThreadLocal<>()。
+发现mybatis自身就有这样一个类实现了类似的功能，类路径：org.apache.ibatis.session.SqlSessionManager，
+该类实现了SqlSessionFactory, SqlSession并且在其中定义了一个treadLocal的sqlssion对象，同时使用了代理拦截进行了sqlsession的自动管理，
+可用SqlSessionManager对DefaultSqlSession的管理，从而实现线程安全
